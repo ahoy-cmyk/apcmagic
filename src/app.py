@@ -1,26 +1,53 @@
 #!/usr/bin/env python3
 
+import configparser
 import sqlite3
 import subprocess
+import sys
 import time
 from pathlib import Path
 
 import apcaccess
+import paramiko
 import rumps
 from flask import Flask, jsonify, render_template
-import paramiko
 
 # Constants
-DATABASE_FILE = Path(__file__).parent.parent / "data" / "apc_data.db"
+BASE_DIR = Path(__file__).parent.parent
+DATABASE_FILE = BASE_DIR / "data" / "apc_data.db"
+CONFIG_FILE = BASE_DIR / "config.ini"
 
-# Ubiquiti Configuration
-UBIQUITI_DEVICES = [
-    {
-        "host": "192.168.1.1",
-        "username": "ubnt",
-        "password": "ubnt",
-    },
-]
+# Configuration
+config = configparser.ConfigParser()
+if not CONFIG_FILE.is_file():
+    print(f"Error: Configuration file not found at {CONFIG_FILE}")
+    print("Please copy config.ini.example to config.ini and fill in your details.")
+    sys.exit(1)
+
+config.read(CONFIG_FILE)
+
+try:
+    SHUTDOWN_THRESHOLD = config.getint("apcmagic", "shutdown_threshold")
+    MONITOR_INTERVAL = config.getint("apcmagic", "monitor_interval_seconds")
+    ubiquiti_hosts_str = config.get("ubiquiti", "hosts")
+    ubiquiti_username = config.get("ubiquiti", "username")
+    ubiquiti_password = config.get("ubiquiti", "password")
+except (configparser.NoSectionError, configparser.NoOptionError) as e:
+    print(f"Error in configuration file: {e}")
+    sys.exit(1)
+
+# Create UBIQUITI_DEVICES list from config
+UBIQUITI_DEVICES = []
+if ubiquiti_hosts_str:
+    ubiquiti_hosts = [h.strip() for h in ubiquiti_hosts_str.split(',')]
+    for host in ubiquiti_hosts:
+        if host:
+            UBIQUITI_DEVICES.append({
+                "host": host,
+                "username": ubiquiti_username,
+                "password": ubiquiti_password,
+            })
+
 
 # rumps app
 class APCApp(rumps.App):
@@ -125,7 +152,7 @@ def monitor_ups():
             conn.commit()
 
             # Check for power loss and battery threshold
-            if status["STATUS"] == "ONBATT" and float(status["BCHARGE"]) < 20:
+            if status["STATUS"] == "ONBATT" and float(status["BCHARGE"]) < SHUTDOWN_THRESHOLD:
                 # Initiate shutdown
                 print("UPS power lost and battery threshold reached. Shutting down...")
                 shutdown_ubiquiti_devices()
@@ -134,7 +161,7 @@ def monitor_ups():
         except Exception as e:
             print(f"Error: {e}")
 
-        time.sleep(60)
+        time.sleep(MONITOR_INTERVAL)
 
 if __name__ == "__main__":
     # Start the monitoring loop in a separate thread

@@ -1,0 +1,15 @@
+[apcmagic]
+# The battery charge percentage at which the shutdown sequence will be initiated.
+shutdown_threshold = 20
+
+# The time in seconds between each check of the UPS status.
+monitor_interval_seconds = 60
+
+[ubiquiti]
+# A comma-separated list of hostnames or IP addresses for your Ubiquiti devices.
+# example: 192.168.1.1,192.168.1.2
+hosts = 
+
+# The SSH username and password for your Ubiquiti devices.
+username = ubnt
+password = ubnt
