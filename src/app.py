@@ -78,7 +78,8 @@ if ubiquiti_hosts_str:
             })
 
 # Database setup
-def setup_database():
+def setup_database() -> None:
+    """Sets up the SQLite database for storing UPS data. Creates the table if it doesn't exist."""
     try:
         conn = sqlite3.connect(DATABASE_FILE)
         cursor = conn.cursor()
@@ -104,7 +105,8 @@ def setup_database():
 
 
 # Ubiquiti shutdown
-def shutdown_ubiquiti_devices():
+def shutdown_ubiquiti_devices() -> None:
+    """Shuts down configured Ubiquiti devices via SSH."""
     if not UBIQUITI_DEVICES:
         logger.info("No Ubiquiti devices configured for shutdown.")
         return
@@ -131,7 +133,8 @@ def shutdown_ubiquiti_devices():
 
 
 # Monitoring loop
-def monitor_ups():
+def monitor_ups() -> None:
+    """Monitors the UPS status, logs data, and initiates shutdown if necessary."""
     setup_database()
     conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()

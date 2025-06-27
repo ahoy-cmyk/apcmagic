@@ -14,11 +14,13 @@ DATABASE_FILE = BASE_DIR / "data" / "apc_data.db"
 app = Flask(__name__)
 
 @app.route("/")
-def index():
+def index() -> str:
+    """Renders the main index page of the web application."""
     return render_template("index.html")
 
 @app.route("/api/status")
-def api_status():
+def api_status() -> tuple[dict, int] | dict:
+    """Returns the current UPS status as a JSON object."""
     try:
         status = apcaccess.get_status()
         return jsonify(status)
@@ -27,7 +29,8 @@ def api_status():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/history")
-def api_history():
+def api_history() -> tuple[dict, int] | dict:
+    """Returns historical UPS data for a given time range as a JSON object."""
     timerange = request.args.get("timerange", "1h")
 
     time_deltas = {

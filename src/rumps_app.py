@@ -5,12 +5,15 @@ import logging
 logger = logging.getLogger("apcmagic")
 
 class APCApp(rumps.App):
-    def __init__(self):
+    """A rumps application for displaying APC UPS status in the macOS menu bar."""
+
+    def __init__(self) -> None:
         super(APCApp, self).__init__("APC UPS Status")
         self.menu = ["Status", "Quit"]
 
     @rumps.clicked("Status")
-    def status(self, _):
+    def status(self, _) -> None:
+        """Displays the current UPS status in a rumps alert window."""
         try:
             status = apcaccess.get_status()
             rumps.alert(
