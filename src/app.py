@@ -175,7 +175,8 @@ def monitor_ups() -> None:
 
         time.sleep(MONITOR_INTERVAL)
 
-if __name__ == "__main__":
+def main() -> None:
+    """Main function to start the monitoring, web, and rumps applications."""
     # Start the monitoring loop in a separate thread
     monitor_thread = threading.Thread(target=monitor_ups)
     monitor_thread.daemon = True
@@ -188,3 +189,6 @@ if __name__ == "__main__":
 
     # Start the rumps app
     APCApp().run()
+
+if __name__ == "__main__":
+    main()
