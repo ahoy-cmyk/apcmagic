@@ -2,3 +2,4 @@ apcaccess
 Flask
 rumps
 paramiko
+pytest
