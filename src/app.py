@@ -11,7 +11,7 @@ from pathlib import Path
 import apcaccess
 import paramiko
 import rumps
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 
 # Constants
 BASE_DIR = Path(__file__).parent.parent
@@ -115,10 +115,24 @@ def api_status():
 
 @app.route("/api/history")
 def api_history():
+    timerange = request.args.get("timerange", "1h")
+
+    time_deltas = {
+        "1h": "-1 hour",
+        "24h": "-1 day",
+        "7d": "-7 days",
+    }
+
+    if timerange not in time_deltas:
+        return jsonify({"error": "Invalid timerange"}), 400
+
     try:
         conn = sqlite3.connect(DATABASE_FILE)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM ups_data ORDER BY timestamp DESC LIMIT 100")
+        cursor.execute(
+            "SELECT * FROM ups_data WHERE timestamp > datetime('now', ?) ORDER BY timestamp DESC",
+            (time_deltas[timerange],),
+        )
         data = cursor.fetchall()
         conn.close()
         return jsonify(data)

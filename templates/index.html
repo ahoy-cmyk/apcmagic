@@ -3,6 +3,7 @@
 <head>
     <title>APC UPS Status</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
         body {
             font-family: sans-serif;
@@ -20,6 +21,11 @@
     <div class="container">
         <h1>APC UPS Status</h1>
         <div id="status"></div>
+        <div id="time-range-buttons">
+            <button onclick="updateChart('1h')">1 Hour</button>
+            <button onclick="updateChart('24h')">24 Hours</button>
+            <button onclick="updateChart('7d')">7 Days</button>
+        </div>
         <canvas id="chart"></canvas>
     </div>
 
@@ -42,11 +48,11 @@
                 });
         }
 
-        function updateChart() {
-            fetch('/api/history')
+        function updateChart(timerange = '1h') {
+            fetch(`/api/history?timerange=${timerange}`)
                 .then(response => response.json())
                 .then(data => {
-                    const labels = data.map(row => new Date(row[0]).toLocaleTimeString());
+                    const labels = data.map(row => new Date(row[0]));
                     const bcharge = data.map(row => row[2]);
                     const loadpct = data.map(row => row[3]);
 
@@ -74,6 +80,16 @@
                                         fill: false
                                     }
                                 ]
+                            },
+                            options: {
+                                scales: {
+                                    x: {
+                                        type: 'time',
+                                        time: {
+                                            unit: 'hour'
+                                        }
+                                    }
+                                }
                             }
                         });
                     }
@@ -84,7 +100,6 @@
         updateChart();
 
         setInterval(updateStatus, 5000);
-        setInterval(updateChart, 60000);
     </script>
 </body>
 </html>
