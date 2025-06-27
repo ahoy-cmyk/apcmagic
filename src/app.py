@@ -6,12 +6,14 @@ import sqlite3
 import subprocess
 import sys
 import time
+import threading
 from pathlib import Path
 
 import apcaccess
 import paramiko
-import rumps
-from flask import Flask, jsonify, render_template, request
+
+from rumps_app import APCApp
+from web_app import app as flask_app
 
 # Constants
 BASE_DIR = Path(__file__).parent.parent
@@ -74,71 +76,6 @@ if ubiquiti_hosts_str:
                 "username": ubiquiti_username,
                 "password": ubiquiti_password,
             })
-
-
-# rumps app
-class APCApp(rumps.App):
-    def __init__(self):
-        super(APCApp, self).__init__("APC UPS Status")
-        self.menu = ["Status", "Quit"]
-
-    @rumps.clicked("Status")
-    def status(self, _):
-        try:
-            status = apcaccess.get_status()
-            rumps.alert(
-                title="APC UPS Status",
-                message=f"Status: {status['STATUS']}\n" \
-                        f"Battery: {status['BCHARGE']}%\n" \
-                        f"Load: {status['LOADPCT']}%\n" \
-                        f"Time Left: {status['TIMELEFT']}",
-            )
-        except Exception as e:
-            rumps.alert(title="Error", message=str(e))
-            logger.error(f"Error in rumps app status: {e}")
-
-# Flask app
-app = Flask(__name__)
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/api/status")
-def api_status():
-    try:
-        status = apcaccess.get_status()
-        return jsonify(status)
-    except Exception as e:
-        logger.error(f"Error in /api/status: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/history")
-def api_history():
-    timerange = request.args.get("timerange", "1h")
-
-    time_deltas = {
-        "1h": "-1 hour",
-        "24h": "-1 day",
-        "7d": "-7 days",
-    }
-
-    if timerange not in time_deltas:
-        return jsonify({"error": "Invalid timerange"}), 400
-
-    try:
-        conn = sqlite3.connect(DATABASE_FILE)
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT * FROM ups_data WHERE timestamp > datetime('now', ?) ORDER BY timestamp DESC",
-            (time_deltas[timerange],),
-        )
-        data = cursor.fetchall()
-        conn.close()
-        return jsonify(data)
-    except Exception as e:
-        logger.error(f"Error in /api/history: {e}")
-        return jsonify({"error": str(e)}), 500
 
 # Database setup
 def setup_database():
@@ -233,14 +170,14 @@ def monitor_ups():
 
 if __name__ == "__main__":
     # Start the monitoring loop in a separate thread
-    import threading
-
     monitor_thread = threading.Thread(target=monitor_ups)
     monitor_thread.daemon = True
     monitor_thread.start()
 
-    # Start the Flask app
-    # app.run(debug=True, use_reloader=False)
+    # Start the Flask app in a separate thread
+    flask_thread = threading.Thread(target=lambda: flask_app.run(debug=True, use_reloader=False))
+    flask_thread.daemon = True
+    flask_thread.start()
 
     # Start the rumps app
     APCApp().run()
