@@ -43,7 +43,7 @@ def api_history():
         conn = sqlite3.connect(DATABASE_FILE)
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT * FROM ups_data WHERE timestamp > datetime('now', ?) ORDER BY timestamp DESC",
+            "SELECT timestamp, status, bcharge, loadpct, timeleft, linev, battv FROM ups_data WHERE timestamp > datetime('now', ?) ORDER BY timestamp DESC",
             (time_deltas[timerange],),
         )
         data = cursor.fetchall()

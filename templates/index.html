@@ -55,11 +55,15 @@
                     const labels = data.map(row => new Date(row[0]));
                     const bcharge = data.map(row => row[2]);
                     const loadpct = data.map(row => row[3]);
+                    const linev = data.map(row => row[5]);
+                    const battv = data.map(row => row[6]);
 
                     if (chart) {
                         chart.data.labels = labels;
                         chart.data.datasets[0].data = bcharge;
                         chart.data.datasets[1].data = loadpct;
+                        chart.data.datasets[2].data = linev;
+                        chart.data.datasets[3].data = battv;
                         chart.update();
                     } else {
                         chart = new Chart(chartCanvas, {
@@ -71,13 +75,29 @@
                                         label: 'Battery Charge',
                                         data: bcharge,
                                         borderColor: 'blue',
-                                        fill: false
+                                        fill: false,
+                                        yAxisID: 'y',
                                     },
                                     {
                                         label: 'Load Percentage',
                                         data: loadpct,
                                         borderColor: 'red',
-                                        fill: false
+                                        fill: false,
+                                        yAxisID: 'y',
+                                    },
+                                    {
+                                        label: 'Input Voltage',
+                                        data: linev,
+                                        borderColor: 'green',
+                                        fill: false,
+                                        yAxisID: 'voltage',
+                                    },
+                                    {
+                                        label: 'Battery Voltage',
+                                        data: battv,
+                                        borderColor: 'purple',
+                                        fill: false,
+                                        yAxisID: 'voltage',
                                     }
                                 ]
                             },
@@ -88,6 +108,27 @@
                                         time: {
                                             unit: 'hour'
                                         }
+                                    },
+                                    y: {
+                                        type: 'linear',
+                                        display: true,
+                                        position: 'left',
+                                        title: {
+                                            display: true,
+                                            text: 'Percentage / Time Left'
+                                        }
+                                    },
+                                    voltage: {
+                                        type: 'linear',
+                                        display: true,
+                                        position: 'right',
+                                        title: {
+                                            display: true,
+                                            text: 'Voltage'
+                                        },
+                                        grid: {
+                                            drawOnChartArea: false,
+                                        },
                                     }
                                 }
                             }

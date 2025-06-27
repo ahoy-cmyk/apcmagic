@@ -89,7 +89,9 @@ def setup_database():
                 status TEXT,
                 bcharge REAL,
                 loadpct REAL,
-                timeleft REAL
+                timeleft REAL,
+                linev REAL,
+                battv REAL
             )
             """
         )
@@ -139,12 +141,14 @@ def monitor_ups():
             status = apcaccess.get_status()
             logger.debug(f"UPS Status: {status}")
             cursor.execute(
-                "INSERT INTO ups_data (status, bcharge, loadpct, timeleft) VALUES (?, ?, ?, ?)",
+                "INSERT INTO ups_data (status, bcharge, loadpct, timeleft, linev, battv) VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     status["STATUS"],
                     status["BCHARGE"],
                     status["LOADPCT"],
                     status["TIMELEFT"],
+                    status["LINEV"],
+                    status["BATTV"],
                 ),
             )
             conn.commit()
