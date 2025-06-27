@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>APC UPS Status</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+        .container {
+            width: 80%;
+            margin: 0 auto;
+        }
+        #status {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>APC UPS Status</h1>
+        <div id="status"></div>
+        <canvas id="chart"></canvas>
+    </div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const chartCanvas = document.getElementById('chart');
+
+        let chart;
+
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    statusDiv.innerHTML = `
+                        <p><strong>Status:</strong> ${data.STATUS}</p>
+                        <p><strong>Battery:</strong> ${data.BCHARGE}%</p>
+                        <p><strong>Load:</strong> ${data.LOADPCT}%</p>
+                        <p><strong>Time Left:</strong> ${data.TIMELEFT}</p>
+                    `;
+                });
+        }
+
+        function updateChart() {
+            fetch('/api/history')
+                .then(response => response.json())
+                .then(data => {
+                    const labels = data.map(row => new Date(row[0]).toLocaleTimeString());
+                    const bcharge = data.map(row => row[2]);
+                    const loadpct = data.map(row => row[3]);
+
+                    if (chart) {
+                        chart.data.labels = labels;
+                        chart.data.datasets[0].data = bcharge;
+                        chart.data.datasets[1].data = loadpct;
+                        chart.update();
+                    } else {
+                        chart = new Chart(chartCanvas, {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [
+                                    {
+                                        label: 'Battery Charge',
+                                        data: bcharge,
+                                        borderColor: 'blue',
+                                        fill: false
+                                    },
+                                    {
+                                        label: 'Load Percentage',
+                                        data: loadpct,
+                                        borderColor: 'red',
+                                        fill: false
+                                    }
+                                ]
+                            }
+                        });
+                    }
+                });
+        }
+
+        updateStatus();
+        updateChart();
+
+        setInterval(updateStatus, 5000);
+        setInterval(updateChart, 60000);
+    </script>
+</body>
+</html>
