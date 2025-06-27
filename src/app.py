@@ -8,9 +8,19 @@ from pathlib import Path
 import apcaccess
 import rumps
 from flask import Flask, jsonify, render_template
+import paramiko
 
 # Constants
 DATABASE_FILE = Path(__file__).parent.parent / "data" / "apc_data.db"
+
+# Ubiquiti Configuration
+UBIQUITI_DEVICES = [
+    {
+        "host": "192.168.1.1",
+        "username": "ubnt",
+        "password": "ubnt",
+    },
+]
 
 # rumps app
 class APCApp(rumps.App):
@@ -74,6 +84,26 @@ def setup_database():
     conn.commit()
     conn.close()
 
+
+# Ubiquiti shutdown
+def shutdown_ubiquiti_devices():
+    for device in UBIQUITI_DEVICES:
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(
+                device["host"],
+                username=device["username"],
+                password=device["password"],
+                timeout=10,
+            )
+            print(f"Shutting down {device['host']}")
+            ssh.exec_command("poweroff")
+            ssh.close()
+        except Exception as e:
+            print(f"Error shutting down {device['host']}: {e}")
+
+
 # Monitoring loop
 def monitor_ups():
     setup_database()
@@ -97,6 +127,8 @@ def monitor_ups():
             # Check for power loss and battery threshold
             if status["STATUS"] == "ONBATT" and float(status["BCHARGE"]) < 20:
                 # Initiate shutdown
+                print("UPS power lost and battery threshold reached. Shutting down...")
+                shutdown_ubiquiti_devices()
                 subprocess.run(["shutdown", "-h", "now"])
 
         except Exception as e:
