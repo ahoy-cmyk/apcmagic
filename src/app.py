@@ -9,8 +9,9 @@ import time
 import threading
 from pathlib import Path
 
-import apcaccess
+from apcaccess.status import get, parse
 import paramiko
+import apcaccess
 
 from rumps_app import APCApp
 from web_app import app as flask_app
@@ -46,36 +47,57 @@ logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 # --- End Logging Setup ---
 
-# Configuration
-config = configparser.ConfigParser()
-if not CONFIG_FILE.is_file():
-    logger.error(f"Configuration file not found at {CONFIG_FILE}")
-    logger.error("Please copy config.ini.example to config.ini and fill in your details.")
-    sys.exit(1)
+# Global variables (will be set by _load_configuration)
+SHUTDOWN_THRESHOLD: int = 0
+MONITOR_INTERVAL: int = 0
+UBIQUITI_DEVICES: list[dict] = []
 
-config.read(CONFIG_FILE)
+def _load_configuration() -> None:
+    """Loads configuration from config.ini and populates global variables."""
+    global SHUTDOWN_THRESHOLD, MONITOR_INTERVAL, UBIQUITI_DEVICES
 
-try:
-    SHUTDOWN_THRESHOLD = config.getint("apcmagic", "shutdown_threshold")
-    MONITOR_INTERVAL = config.getint("apcmagic", "monitor_interval_seconds")
-    ubiquiti_hosts_str = config.get("ubiquiti", "hosts")
-    ubiquiti_username = config.get("ubiquiti", "username")
-    ubiquiti_password = config.get("ubiquiti", "password")
-except (configparser.NoSectionError, configparser.NoOptionError) as e:
-    logger.error(f"Error in configuration file: {e}")
-    sys.exit(1)
+    config = configparser.ConfigParser()
+    if not CONFIG_FILE.is_file():
+        logger.error(f"Configuration file not found at {CONFIG_FILE}")
+        logger.error("Please copy config.ini.example to config.ini and fill in your details.")
+        sys.exit(1) # Keep sys.exit for direct execution, tests will mock this.
 
-# Create UBIQUITI_DEVICES list from config
-UBIQUITI_DEVICES = []
-if ubiquiti_hosts_str:
-    ubiquiti_hosts = [h.strip() for h in ubiquiti_hosts_str.split(',')]
-    for host in ubiquiti_hosts:
-        if host:
-            UBIQUITI_DEVICES.append({
-                "host": host,
-                "username": ubiquiti_username,
-                "password": ubiquiti_password,
-            })
+    config.read(CONFIG_FILE)
+
+    try:
+        SHUTDOWN_THRESHOLD = config.getint("apcmagic", "shutdown_threshold")
+        MONITOR_INTERVAL = config.getint("apcmagic", "monitor_interval_seconds")
+        ubiquiti_hosts_str = config.get("ubiquiti", "hosts")
+        ubiquiti_username = config.get("ubiquiti", "username")
+        ubiquiti_password = config.get("ubiquiti", "password", fallback=None)
+        ubiquiti_ssh_key_path = config.get("ubiquiti", "ssh_key_path", fallback=None)
+    except (configparser.NoSectionError, configparser.NoOptionError) as e:
+        logger.error(f"Error in configuration file: {e}")
+        sys.exit(1) # Keep sys.exit for direct execution, tests will mock this.
+
+    # Create UBIQUITI_DEVICES list from config
+    UBIQUITI_DEVICES.clear() # Clear existing list for re-runs in tests
+    if ubiquiti_hosts_str:
+        ubiquiti_hosts = [h.strip() for h in ubiquiti_hosts_str.split(',')]
+        for host in ubiquiti_hosts:
+            if host:
+                # Determine authentication method
+                auth_method = {}
+                if ubiquiti_ssh_key_path and Path(ubiquiti_ssh_key_path).expanduser().is_file():
+                    auth_method["key_filename"] = str(Path(ubiquiti_ssh_key_path).expanduser())
+                    logger.info(f"Using SSH key for {host}")
+                elif ubiquiti_password:
+                    auth_method["password"] = ubiquiti_password
+                    logger.info(f"Using password for {host}")
+                else:
+                    logger.warning(f"No SSH key or password provided for {host}. Skipping.")
+                    continue
+
+                UBIQUITI_DEVICES.append({
+                    "host": host,
+                    "username": ubiquiti_username,
+                    **auth_method,
+                })
 
 # Database setup
 def setup_database() -> None:
@@ -119,7 +141,8 @@ def shutdown_ubiquiti_devices() -> None:
             ssh.connect(
                 device["host"],
                 username=device["username"],
-                password=device["password"],
+                password=device.get("password"),
+                key_filename=device.get("key_filename"),
                 timeout=10,
             )
             logger.info(f"Sending shutdown command to {device['host']}")
@@ -141,7 +164,8 @@ def monitor_ups() -> None:
 
     while True:
         try:
-            status = apcaccess.get_status()
+            raw_status = get()
+            status = parse(raw_status)
             logger.debug(f"UPS Status: {status}")
             cursor.execute(
                 "INSERT INTO ups_data (status, bcharge, loadpct, timeleft, linev, battv) VALUES (?, ?, ?, ?, ?, ?)",
@@ -166,8 +190,8 @@ def monitor_ups() -> None:
                 logger.info("Shutdown sequence complete. Exiting.")
                 sys.exit(0)
 
-        except apcaccess.APCACCESS_GET_STATUS_FAILED:
-            logger.error("Failed to get status from apcupsd. Is it running?")
+        except Exception as e:
+            logger.error("Failed to get status from apcupsd. Is it running? Error: %s" % e)
         except sqlite3.Error as e:
             logger.error(f"Database error in monitoring loop: {e}")
         except Exception as e:
@@ -177,6 +201,8 @@ def monitor_ups() -> None:
 
 def main() -> None:
     """Main function to start the monitoring, web, and rumps applications."""
+    _load_configuration()
+
     # Start the monitoring loop in a separate thread
     monitor_thread = threading.Thread(target=monitor_ups)
     monitor_thread.daemon = True

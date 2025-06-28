@@ -1,5 +1,5 @@
 import rumps
-import apcaccess
+from apcaccess.status import get, parse
 import logging
 
 logger = logging.getLogger("apcmagic")
@@ -15,7 +15,10 @@ class APCApp(rumps.App):
     def status(self, _) -> None:
         """Displays the current UPS status in a rumps alert window."""
         try:
-            status = apcaccess.get_status()
+            raw_status = get()
+            raw_status = get()
+            raw_status = get()
+            status = parse(raw_status)
             rumps.alert(
                 title="APC UPS Status",
                 message=f"Status: {status['STATUS']}\n" \

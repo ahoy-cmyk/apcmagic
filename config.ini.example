@@ -13,3 +13,5 @@ hosts =
 # The SSH username and password for your Ubiquiti devices.
 username = ubnt
 password = ubnt
+# Optional: Path to your SSH private key file (e.g., ~/.ssh/id_rsa)
+# ssh_key_path = 

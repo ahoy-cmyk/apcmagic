@@ -2,7 +2,7 @@ import logging
 import sqlite3
 from pathlib import Path
 
-import apcaccess
+from apcaccess.status import get, parse
 from flask import Flask, jsonify, render_template, request
 
 logger = logging.getLogger("apcmagic")
@@ -22,7 +22,8 @@ def index() -> str:
 def api_status() -> tuple[dict, int] | dict:
     """Returns the current UPS status as a JSON object."""
     try:
-        status = apcaccess.get_status()
+        raw_status = get()
+        status = parse(raw_status)
         return jsonify(status)
     except Exception as e:
         logger.error(f"Error in /api/status: {e}")
