@@ -11,7 +11,7 @@ logger = logging.getLogger("apcmagic")
 BASE_DIR = Path(__file__).parent.parent
 DATABASE_FILE = BASE_DIR / "data" / "apc_data.db"
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=BASE_DIR / "templates")
 
 @app.route("/")
 def index() -> str:
