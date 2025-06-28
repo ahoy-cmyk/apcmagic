@@ -18,7 +18,6 @@ A Python application for monitoring an APC Back-UPS Pro BR1500MS2 via USB, with 
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/ahoy-cmyk/apcmagic.git
-    cd apcmagic
     ```
 
 2.  **Install `apcupsd`:**
