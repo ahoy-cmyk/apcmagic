@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>APC UPS Status</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+        .container {
+            width: 80%;
+            margin: 0 auto;
+        }
+        #status {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>APC UPS Status</h1>
+        <div id="status"></div>
+        <div id="time-range-buttons">
+            <button onclick="updateChart('1h')">1 Hour</button>
+            <button onclick="updateChart('24h')">24 Hours</button>
+            <button onclick="updateChart('7d')">7 Days</button>
+        </div>
+        <canvas id="chart"></canvas>
+    </div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const chartCanvas = document.getElementById('chart');
+
+        let chart;
+
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    statusDiv.innerHTML = `
+                        <p><strong>Status:</strong> ${data.STATUS}</p>
+                        <p><strong>Battery:</strong> ${data.BCHARGE}%</p>
+                        <p><strong>Load:</strong> ${data.LOADPCT}%</p>
+                        <p><strong>Time Left:</strong> ${data.TIMELEFT}</p>
+                    `;
+                });
+        }
+
+        function updateChart(timerange = '1h') {
+            fetch(`/api/history?timerange=${timerange}`)
+                .then(response => response.json())
+                .then(data => {
+                    const labels = data.map(row => new Date(row[0]));
+                    const bcharge = data.map(row => row[2]);
+                    const loadpct = data.map(row => row[3]);
+                    const linev = data.map(row => row[5]);
+                    const battv = data.map(row => row[6]);
+
+                    if (chart) {
+                        chart.data.labels = labels;
+                        chart.data.datasets[0].data = bcharge;
+                        chart.data.datasets[1].data = loadpct;
+                        chart.data.datasets[2].data = linev;
+                        chart.data.datasets[3].data = battv;
+                        chart.update();
+                    } else {
+                        chart = new Chart(chartCanvas, {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [
+                                    {
+                                        label: 'Battery Charge',
+                                        data: bcharge,
+                                        borderColor: 'blue',
+                                        fill: false,
+                                        yAxisID: 'y',
+                                    },
+                                    {
+                                        label: 'Load Percentage',
+                                        data: loadpct,
+                                        borderColor: 'red',
+                                        fill: false,
+                                        yAxisID: 'y',
+                                    },
+                                    {
+                                        label: 'Input Voltage',
+                                        data: linev,
+                                        borderColor: 'green',
+                                        fill: false,
+                                        yAxisID: 'voltage',
+                                    },
+                                    {
+                                        label: 'Battery Voltage',
+                                        data: battv,
+                                        borderColor: 'purple',
+                                        fill: false,
+                                        yAxisID: 'voltage',
+                                    }
+                                ]
+                            },
+                            options: {
+                                scales: {
+                                    x: {
+                                        type: 'time',
+                                        time: {
+                                            unit: 'hour'
+                                        }
+                                    },
+                                    y: {
+                                        type: 'linear',
+                                        display: true,
+                                        position: 'left',
+                                        title: {
+                                            display: true,
+                                            text: 'Percentage / Time Left'
+                                        }
+                                    },
+                                    voltage: {
+                                        type: 'linear',
+                                        display: true,
+                                        position: 'right',
+                                        title: {
+                                            display: true,
+                                            text: 'Voltage'
+                                        },
+                                        grid: {
+                                            drawOnChartArea: false,
+                                        },
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+        }
+
+        updateStatus();
+        updateChart();
+
+        setInterval(updateStatus, 5000);
+    </script>
+</body>
+</html>
