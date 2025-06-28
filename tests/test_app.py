@@ -2,11 +2,7 @@ import pytest
 import unittest.mock as mock
 from pathlib import Path
 import sqlite3
-import apcaccess
-
 import app
-
-import apcaccess
 
 # Mock the logger to prevent actual logging during tests
 @pytest.fixture(autouse=True)
@@ -87,12 +83,7 @@ def mock_subprocess_run():
 @pytest.fixture
 def mock_paramiko_sshclient():
     with mock.patch('app.paramiko.SSHClient') as MockSSHClient:
-        mock_ssh_instance = MockSSHClient.return_value
-        mock_ssh_instance.set_missing_host_key_policy = mock.Mock()
-        mock_ssh_instance.connect = mock.Mock()
-        mock_ssh_instance.exec_command = mock.Mock()
-        mock_ssh_instance.close = mock.Mock()
-        yield mock_ssh_instance
+        yield MockSSHClient
 
 @pytest.fixture
 def mock_sqlite3_connect():
@@ -125,11 +116,11 @@ def test_shutdown_ubiquiti_devices_success_password(mock_paramiko_sshclient, moc
     app.UBIQUITI_DEVICES.clear()
     app.UBIQUITI_DEVICES.append({'host': '192.168.1.1', 'username': 'testuser', 'password': 'testpass'})
     app.shutdown_ubiquiti_devices()
-    mock_paramiko_sshclient.connect.assert_called_once_with(
+    mock_paramiko_sshclient.return_value.connect.assert_called_once_with(
         '192.168.1.1', username='testuser', password='testpass', key_filename=None, timeout=10
     )
-    mock_paramiko_sshclient.exec_command.assert_called_once_with("poweroff")
-    mock_paramiko_sshclient.close.assert_called_once()
+    mock_paramiko_sshclient.return_value.exec_command.assert_called_once_with("poweroff")
+    mock_paramiko_sshclient.return_value.close.assert_called_once()
     mock_logger.info.assert_any_call("Successfully shut down 192.168.1.1")
 
 def test_shutdown_ubiquiti_devices_success_ssh_key(mock_paramiko_sshclient, mock_logger, tmp_path, mock_config):
@@ -141,11 +132,11 @@ def test_shutdown_ubiquiti_devices_success_ssh_key(mock_paramiko_sshclient, mock
     app.UBIQUITI_DEVICES.clear()
     app.UBIQUITI_DEVICES.append({'host': '192.168.1.2', 'username': 'testuser', 'key_filename': str(ssh_key_file)})
     app.shutdown_ubiquiti_devices()
-    mock_paramiko_sshclient.connect.assert_called_once_with(
+    mock_paramiko_sshclient.return_value.connect.assert_called_once_with(
         '192.168.1.2', username='testuser', password=None, key_filename=str(ssh_key_file), timeout=10
     )
-    mock_paramiko_sshclient.exec_command.assert_called_once_with("poweroff")
-    mock_paramiko_sshclient.close.assert_called_once()
+    mock_paramiko_sshclient.return_value.exec_command.assert_called_once_with("poweroff")
+    mock_paramiko_sshclient.return_value.close.assert_called_once()
     mock_logger.info.assert_any_call("Successfully shut down 192.168.1.2")
 
 def test_shutdown_ubiquiti_devices_auth_failure_password(mock_paramiko_sshclient, mock_logger, mock_config):

@@ -5,7 +5,7 @@ from rumps_app import APCApp
 
 @pytest.fixture
 def mock_rumps_app():
-    with mock.patch('rumps.App.__init__', return_value=None) as mock_init, mock.patch('rumps.App.menu', new_callable=mock.PropertyMock) as mock_menu:
+    with mock.patch('rumps.App.__init__', return_value=None) as mock_init,         mock.patch('rumps.App.menu', new_callable=mock.PropertyMock) as mock_menu:
         yield mock_init, mock_menu
 
 

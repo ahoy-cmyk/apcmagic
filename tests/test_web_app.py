@@ -12,7 +12,8 @@ def client():
 
 @pytest.fixture(autouse=True)
 def mock_apcaccess_get_status():
-    with mock.patch('web_app.get') as _mock_get, mock.patch('web_app.parse') as _mock_parse:
+    with mock.patch('web_app.get') as _mock_get, \
+         mock.patch('web_app.parse') as _mock_parse:
         _mock_get.return_value = "raw_status_string"
         _mock_parse.return_value = {
             'STATUS': 'ONLINE',
